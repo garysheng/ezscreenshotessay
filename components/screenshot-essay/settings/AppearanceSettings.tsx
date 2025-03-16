@@ -65,7 +65,7 @@ const ASPECT_RATIO_OPTIONS = [
 
 interface AppearanceSettingsProps {
   options: Pick<ScreenshotEssayOptions, 'fontFamily' | 'textColor' | 'aspectRatio' | 'textDensity' | 'padding' | 'lineHeight'>;
-  onUpdate: (key: string, value: any) => void;
+  onUpdate: (key: string, value: unknown) => void;
 }
 
 export function AppearanceSettings({ options, onUpdate }: AppearanceSettingsProps) {

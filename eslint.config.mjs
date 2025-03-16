@@ -10,13 +10,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  // Disable all rules by setting an empty configuration
-  {
-    rules: {},
-    ignorePatterns: ["**/*"],
-  }
-  // Previous config commented out
-  // ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 
 export default eslintConfig;

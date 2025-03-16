@@ -1,4 +1,4 @@
-import { ReactNode, RefObject } from "react";
+import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
@@ -19,8 +19,8 @@ export function PreviewPanel({ children, onDownload, isLargeScreen }: PreviewPan
     backgroundSize: '16px 16px',
     backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
     backgroundColor: 'var(--grid-bg)',
-    ['--grid-color' as any]: 'rgba(0, 0, 0, 0.05)',
-    ['--grid-bg' as any]: '#ffffff',
+    ['--grid-color' as string]: 'rgba(0, 0, 0, 0.05)',
+    ['--grid-bg' as string]: '#ffffff',
   };
 
   if (isLargeScreen) {
@@ -48,10 +48,7 @@ export function PreviewPanel({ children, onDownload, isLargeScreen }: PreviewPan
   }
 
   return (
-    <div className="mt-8 mb-8 bg-slate-50 dark:bg-slate-900 pb-8 pt-2 rounded-t-xl shadow-lg">
-      {/* Strong visual separator */}
-      <div className="border-t-4 border-black dark:border-white mx-4 my-6"></div>
-      
+    <div className="mt-8 mb-8 bg-slate-50 dark:bg-slate-900 pb-8 pt-2 rounded-t-xl shadow-lg">      
       {/* Preview header with better styling */}
       <div className="flex justify-between items-center mb-6 px-4 py-2 bg-black dark:bg-white text-white dark:text-black mx-4 rounded-md">
         <h3 className="text-xl font-bold">Preview</h3>

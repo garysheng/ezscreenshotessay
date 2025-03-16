@@ -7,10 +7,9 @@ import { saveAs } from "file-saver";
 
 interface ScreenshotEssayPreviewProps {
   options: ScreenshotEssayOptions;
-  onDownload?: () => void; // Optional callback for parent component to handle download
 }
 
-export default function ScreenshotEssayPreview({ options, onDownload }: ScreenshotEssayPreviewProps) {
+export default function ScreenshotEssayPreview({ options }: ScreenshotEssayPreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -39,15 +38,16 @@ export default function ScreenshotEssayPreview({ options, onDownload }: Screensh
   };
   
   // Calculate height based on width and aspect ratio
-  const calculateHeight = () => {
-    if (options.height) return options.height;
-    
-    const width = calculateWidth();
-    const aspectRatio = parseAspectRatio();
-    
-    // Calculate height from width and aspect ratio
-    return Math.round(width / aspectRatio);
-  };
+  // This function is kept for potential future use but currently not called
+  // const calculateHeight = () => {
+  //   if (options.height) return options.height;
+  //   
+  //   const width = calculateWidth();
+  //   const aspectRatio = parseAspectRatio();
+  //   
+  //   // Calculate height from width and aspect ratio
+  //   return Math.round(width / aspectRatio);
+  // };
   
   // Update container width on resize
   useEffect(() => {
@@ -98,20 +98,8 @@ export default function ScreenshotEssayPreview({ options, onDownload }: Screensh
   // Get the effective font size (auto-calculated or user-specified)
   const effectiveFontSize = calculateFontSize();
 
-  const handleDownload = async () => {
-    if (!previewRef.current) return;
-    
-    try {
-      const dataUrl = await toPng(previewRef.current, { quality: 0.95 });
-      saveAs(dataUrl, "ezscreenshotessay.png");
-      // Call parent callback if provided
-      if (onDownload) {
-        onDownload();
-      }
-    } catch (error) {
-      console.error("Error generating image:", error);
-    }
-  };
+  // Ensure document text is appropriately sized
+  const adjustedFontSize = `${effectiveFontSize}px`;
 
   // Create diagonal watermark
   const renderDiagonalWatermark = () => {
@@ -240,7 +228,7 @@ export default function ScreenshotEssayPreview({ options, onDownload }: Screensh
 
   // Get calculated dimensions
   const effectiveWidth = calculateWidth();
-  const effectiveHeight = calculateHeight();
+  // Removed calculateHeight and effectiveHeight as they're not used
 
   // Add CSS styles for the responsive preview container
   const responsivePreviewStyles = `
@@ -332,7 +320,7 @@ export default function ScreenshotEssayPreview({ options, onDownload }: Screensh
                 className="relative z-10 rich-text-content w-full h-full"
                 style={{ 
                   ...contentPadding,
-                  fontSize: `${effectiveFontSize}px`,
+                  fontSize: adjustedFontSize,
                   lineHeight: options.lineHeight,
                   color: options.textColor,
                   fontFamily: options.fontFamily,

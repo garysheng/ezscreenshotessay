@@ -28,7 +28,7 @@ import { useState } from "react";
 export interface SavedTemplate {
   name: string;
   timestamp: number;
-  options: any; // We'll use any here since we're only managing the template, not using its contents
+  options: Record<string, unknown>; // Replace any with a more specific type
 }
 
 interface TemplateControlsProps {

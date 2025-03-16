@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Loader2, GripVertical } from "lucide-react";
-
+import { Download, Settings as SettingsIcon, Eye as EyeIcon, GripVertical, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,17 @@ import {
   Panel,
   PanelResizeHandle,
 } from "react-resizable-panels";
+
+// Import our reusable components
+import { ContentEditor } from "./settings/ContentEditor";
+import { AppearanceSettings } from "./settings/AppearanceSettings";
+import { BackgroundSettings } from "./settings/BackgroundSettings";
+import { WatermarkSettings } from "./settings/WatermarkSettings";
+import { TemplateControls, SavedTemplate } from "./settings/TemplateControls";
+import { ActionButtons } from "./settings/ActionButtons";
+import { PreviewPanel } from "./settings/PreviewPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 // Default options to use when no saved state exists
 const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
   // Content
@@ -67,49 +77,9 @@ const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
   }
 };
 
-// Simplify the aspect ratio options to only 3 choices
-const ASPECT_RATIO_OPTIONS = [
-  { 
-    value: "6:7", 
-    label: "6:7 (Portrait)",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 35" width="30" height="35" className="mr-2 text-muted-foreground">
-        <rect width="30" height="35" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  },
-  { 
-    value: "1:1", 
-    label: "1:1 (Square)",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="40" height="30" className="mr-2 text-muted-foreground">
-        <rect width="30" height="30" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  },
-  { 
-    value: "3:4", 
-    label: "3:4",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40" width="30" height="40" className="mr-2 text-muted-foreground">
-        <rect width="30" height="40" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  }
-];
-
 // Local storage keys
 const STORAGE_KEY = "ezscreenshotessay-options";
 const TEMPLATES_STORAGE_KEY = "ezscreenshotessay-templates";
-
-// Import our reusable components
-import { ContentEditor } from "./settings/ContentEditor";
-import { AppearanceSettings } from "./settings/AppearanceSettings";
-import { BackgroundSettings } from "./settings/BackgroundSettings";
-import { WatermarkSettings } from "./settings/WatermarkSettings";
-import { TemplateControls, SavedTemplate } from "./settings/TemplateControls";
-import { ActionButtons } from "./settings/ActionButtons";
-import { PreviewPanel } from "./settings/PreviewPanel";
 
 export default function ScreenshotEssayGenerator() {
   // Initialize with null to indicate we haven't loaded yet
@@ -128,6 +98,9 @@ export default function ScreenshotEssayGenerator() {
 
   // Add a state to track screen size for responsive layout
   const [isLargeScreen, setIsLargeScreen] = useState(true);
+  
+  // Add state for mobile tabs
+  const [activeTab, setActiveTab] = useState("settings");
 
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -228,7 +201,7 @@ export default function ScreenshotEssayGenerator() {
     setOptions((prev) => prev ? { ...prev, ...newOptions } : { ...DEFAULT_OPTIONS, ...newOptions });
   };
 
-  const updateSingleOption = (key: string, value: any) => {
+  const updateSingleOption = (key: string, value: unknown) => {
     updateOptions({ [key]: value });
   };
 
@@ -345,16 +318,17 @@ export default function ScreenshotEssayGenerator() {
     setIsLoading(true);
     
     try {
-      // Load template options
-      setOptions(template.options);
+      // Load template options - we need to cast the options to the correct type
+      setOptions(template.options as unknown as ScreenshotEssayOptions);
       
       // Update active template
       setActiveTemplate(name);
       
       // Update background type
-      if (template.options.useTexture) {
+      const typedOptions = template.options as Record<string, unknown>;
+      if (typedOptions.useTexture === true) {
         setBackgroundType("texture");
-      } else if (template.options.customBackgroundImage) {
+      } else if (typedOptions.customBackgroundImage) {
         setBackgroundType("custom");
       } else {
         setBackgroundType("solid");
@@ -438,6 +412,11 @@ export default function ScreenshotEssayGenerator() {
 
   const handleDownload = async () => {
     try {
+      // If on mobile, switch to preview tab before download
+      if (!isLargeScreen) {
+        setActiveTab("preview");
+      }
+      
       if (!previewRef.current) {
         // Try to find the preview element using query selector as a fallback
         const previewElement = document.querySelector('[data-preview-content="true"]');
@@ -567,21 +546,51 @@ export default function ScreenshotEssayGenerator() {
           </Panel>
         </PanelGroup>
       ) : (
-        // Simple stacked layout for mobile - no resizable panels
+        // Tabbed layout for mobile
         <div className="flex flex-col h-full">
-          <div className="flex-grow overflow-y-auto">
-            {renderSettingsPanel()}
+          <Tabs 
+            defaultValue="settings" 
+            className="flex flex-col h-full"
+            value={activeTab}
+            onValueChange={setActiveTab}
+          >
+            <TabsList className="w-full grid grid-cols-2 sticky top-0 z-10 bg-background shadow-md mb-0">
+              <TabsTrigger value="settings" className="flex items-center gap-2 py-3">
+                <SettingsIcon className="h-4 w-4" />
+                <span>Settings</span>
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="flex items-center gap-2 py-3">
+                <EyeIcon className="h-4 w-4" />
+                <span>Preview</span>
+              </TabsTrigger>
+            </TabsList>
             
-            {/* Preview Section for mobile */}
-            <PreviewPanel
-              onDownload={handleDownload}
-              isLargeScreen={false}
+            <TabsContent value="settings" className="flex-grow overflow-y-auto m-0 p-0 pb-16">
+              {renderSettingsPanel()}
+            </TabsContent>
+            
+            <TabsContent value="preview" className="flex-grow overflow-y-auto m-0 p-0 h-[calc(100vh-56px)]">
+              {/* Add a floating download button for easier access */}
+              <div className="sticky top-4 right-4 flex justify-end z-20 p-2">
+                <Button 
+                  onClick={handleDownload} 
+                  size="sm"
+                  className="shadow-lg bg-primary hover:bg-primary/90 text-white gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+              </div>
+              <PreviewPanel
+                onDownload={handleDownload}
+                isLargeScreen={false}
               >
                 <div data-preview-content="true">
                   <ScreenshotEssayPreview options={options} />
                 </div>
-            </PreviewPanel>
-          </div>
+              </PreviewPanel>
+            </TabsContent>
+          </Tabs>
         </div>
       )}
       

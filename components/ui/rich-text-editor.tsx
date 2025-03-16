@@ -31,7 +31,7 @@ export function RichTextEditor({
     if (editorRef.current) {
       editorRef.current.innerHTML = value;
     }
-  }, []);
+  }, [value]);
 
   // Update the editor content when the value prop changes
   // But only if the change didn't originate from within the editor
