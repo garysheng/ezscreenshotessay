@@ -1,46 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { ScreenshotEssayOptions, WatermarkConfig } from "@/types";
-import ScreenshotEssayPreview from "./ScreenshotEssayPreview";
+import ScreenshotEssayPreview, { toPng, saveAs } from "./ScreenshotEssayPreview";
+import { toast } from "sonner";
+import { GripVertical } from "lucide-react";
+import {
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
+} from "react-resizable-panels";
+
+// Import our reusable components
+import { ContentEditor } from "./settings/ContentEditor";
+import { AppearanceSettings } from "./settings/AppearanceSettings";
+import { BackgroundSettings } from "./settings/BackgroundSettings";
+import { WatermarkSettings } from "./settings/WatermarkSettings";
+import { TemplateControls, SavedTemplate } from "./settings/TemplateControls";
+import { ActionButtons } from "./settings/ActionButtons";
+import { PreviewPanel } from "./settings/PreviewPanel";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { LexicalEditor } from "@/components/ui/lexical-editor";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Save, RotateCcw } from "lucide-react";
-import Image from "next/image";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-// Font options
-const FONT_OPTIONS = [
-  // Sans-serif fonts
-  { value: "Inter, sans-serif", label: "Inter (Sans-serif)" },
-  { value: "Arial, sans-serif", label: "Arial (Sans-serif)" },
-  { value: "Helvetica, sans-serif", label: "Helvetica (Sans-serif)" },
-  { value: "Verdana, sans-serif", label: "Verdana (Sans-serif)" },
-  
-  // Serif fonts
-  { value: "Georgia, serif", label: "Georgia (Serif)" },
-  { value: "Times New Roman, serif", label: "Times New Roman (Serif)" },
-  { value: "Garamond, serif", label: "Garamond (Serif)" },
-  { value: "Baskerville, serif", label: "Baskerville (Serif)" },
-  
-  // Monospace fonts
-  { value: "Consolas, monospace", label: "Consolas (Monospace)" },
-  { value: "Courier New, monospace", label: "Courier New (Monospace)" },
-  { value: "Monaco, monospace", label: "Monaco (Monospace)" },
-  { value: "JetBrains Mono, monospace", label: "JetBrains Mono (Monospace)" },
-];
+import { Loader2 } from "lucide-react";
 
 // Default options to use when no saved state exists
 const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
@@ -86,51 +77,59 @@ const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
   }
 };
 
-// Simplify the aspect ratio options to only 3 choices
-const ASPECT_RATIO_OPTIONS = [
-  { 
-    value: "6:7", 
-    label: "6:7 (Portrait)",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 35" width="30" height="35" className="mr-2 text-muted-foreground">
-        <rect width="30" height="35" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  },
-  { 
-    value: "1:1", 
-    label: "1:1 (Square)",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="40" height="30" className="mr-2 text-muted-foreground">
-        <rect width="30" height="30" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  },
-  { 
-    value: "3:4", 
-    label: "3:4",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40" width="30" height="40" className="mr-2 text-muted-foreground">
-        <rect width="30" height="40" rx="2" fill="currentColor" opacity="0.2" />
-      </svg>
-    )
-  }
-];
-
-// Local storage key
+// Local storage keys
 const STORAGE_KEY = "ezscreenshotessay-options";
+const TEMPLATES_STORAGE_KEY = "ezscreenshotessay-templates";
 
 export default function ScreenshotEssayGenerator() {
   // Initialize with null to indicate we haven't loaded yet
   const [options, setOptions] = useState<ScreenshotEssayOptions | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   
+  // Template state
+  const [templates, setTemplates] = useState<SavedTemplate[]>([]);
+  const [activeTemplate, setActiveTemplate] = useState<string | undefined>(undefined);
+  const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
   // Explicit background type tracking for UI
   const [backgroundType, setBackgroundType] = useState<"solid" | "texture" | "custom">("solid");
+
+  // Add a state to track screen size for responsive layout
+  const [isLargeScreen, setIsLargeScreen] = useState(true);
+
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+    
+    // Set initial value
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Load saved options from localStorage on component mount
   useEffect(() => {
     try {
+      // Load saved templates first
+      const savedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+      if (savedTemplates) {
+        const parsedTemplates = JSON.parse(savedTemplates);
+        setTemplates(parsedTemplates.templates || []);
+        setActiveTemplate(parsedTemplates.activeTemplate);
+      }
+
       const savedOptions = localStorage.getItem(STORAGE_KEY);
       if (savedOptions) {
         // If we have saved options, use them
@@ -199,6 +198,10 @@ export default function ScreenshotEssayGenerator() {
     setOptions((prev) => prev ? { ...prev, ...newOptions } : { ...DEFAULT_OPTIONS, ...newOptions });
   };
 
+  const updateSingleOption = (key: string, value: unknown) => {
+    updateOptions({ [key]: value });
+  };
+
   const updateWatermark = (key: 'bottomRight' | 'diagonal', config: Partial<WatermarkConfig>) => {
     setOptions((prev) => {
       if (!prev) return prev;
@@ -236,6 +239,7 @@ export default function ScreenshotEssayGenerator() {
   const handleReset = () => {
     if (window.confirm("Are you sure you want to reset all settings to default?")) {
       setOptions(DEFAULT_OPTIONS);
+      setActiveTemplate(undefined);
       toast.info("Settings reset to default", {
         duration: 2000,
         position: "bottom-right",
@@ -243,426 +247,350 @@ export default function ScreenshotEssayGenerator() {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-      <div>
-        <Card className="p-6">
-          <div className="space-y-6">
-            {/* Save/Reset Controls */}
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleReset}
-                  className="gap-1"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset
-                </Button>
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  onClick={handleSaveManually}
-                  className="gap-1"
-                  title="Your settings will be automatically remembered when you return to the site next time"
-                >
-                  <Save className="h-4 w-4" />
-                  Save to local storage
-                </Button>
-              </div>
-            </div>
-            
-            {/* Content Section */}
-            <div className="rounded-lg border border-border bg-yellow-50 dark:bg-yellow-900/20 p-4 space-y-4">
-              <h3 className="text-lg font-medium">Content</h3>
-              <div className="space-y-2">
-                <LexicalEditor
-                  value={options.content}
-                  onChange={(value) => updateOptions({ content: value })}
-                  placeholder="Enter your essay content here..."
-                  className="min-h-[200px]"
-                />
-              </div>
-            </div>
-            
-            {/* Appearance Section */}
-            <div className="rounded-lg border border-border bg-blue-50 dark:bg-blue-900/20 p-4 space-y-4">
-              <h3 className="text-lg font-medium">Appearance</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="fontFamily">Font Family</Label>
-                <Select
-                  value={options.fontFamily}
-                  onValueChange={(value) => updateOptions({ fontFamily: value })}
-                >
-                  <SelectTrigger id="fontFamily" className="w-full">
-                    <SelectValue placeholder="Select a font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {FONT_OPTIONS.map((font) => (
-                        <SelectItem 
-                          key={font.value} 
-                          value={font.value}
-                          style={{ fontFamily: font.value }}
-                        >
-                          {font.label}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="textColor">Text Color</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="textColor"
-                    type="color"
-                    value={options.textColor}
-                    onChange={(e) => updateOptions({ textColor: e.target.value })}
-                    className="w-12 h-10 p-1"
-                  />
-                  <Input
-                    value={options.textColor}
-                    onChange={(e) => updateOptions({ textColor: e.target.value })}
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-4 border border-border bg-background rounded-lg p-4">
-                <h4 className="font-medium">Dimensions</h4>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aspectRatio">Aspect Ratio</Label>
-                  <Select
-                    value={options.aspectRatio || "6:7"}
-                    onValueChange={(value) => updateOptions({ aspectRatio: value })}
-                  >
-                    <SelectTrigger id="aspectRatio" className="w-full">
-                      {/* Custom display for selected aspect ratio */}
-                      {(() => {
-                        const selected = ASPECT_RATIO_OPTIONS.find(
-                          option => option.value === (options.aspectRatio || "6:7")
-                        );
-                        return (
-                          <div className="flex items-center w-full">
-                            {selected?.icon}
-                            <span>{selected?.label}</span>
-                          </div>
-                        );
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {ASPECT_RATIO_OPTIONS.map((ratio) => (
-                          <SelectItem 
-                            key={ratio.value} 
-                            value={ratio.value}
-                          >
-                            <div className="flex items-center">
-                              {ratio.icon}
-                              {ratio.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </div>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    Choose an aspect ratio for your screenshot
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label htmlFor="textDensity">Font Size: {((options.textDensity || 1.5) * 50).toFixed(0)}%</Label>
-                  </div>
-                  <Slider
-                    id="textDensity"
-                    min={0.5}
-                    max={6.0}
-                    step={0.1}
-                    value={[options.textDensity || 1.5]}
-                    onValueChange={(value: number[]) => updateOptions({ textDensity: value[0] })}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Control the font size directly (25% to 300%) without auto-scaling based on content length
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="padding">Padding: {options.padding}px</Label>
-                </div>
-                <Slider
-                  id="padding"
-                  min={20}
-                  max={100}
-                  step={5}
-                  value={[options.padding]}
-                  onValueChange={(value: number[]) => updateOptions({ padding: value[0] })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="lineHeight">Line Height: {options.lineHeight}</Label>
-                </div>
-                <Slider
-                  id="lineHeight"
-                  min={1.2}
-                  max={2.0}
-                  step={0.1}
-                  value={[options.lineHeight]}
-                  onValueChange={(value: number[]) => updateOptions({ lineHeight: value[0] })}
-                />
-              </div>
-            </div>
-            
-            {/* Colors Section */}
-            <div className="rounded-lg border border-border bg-green-50 dark:bg-green-900/20 p-4 space-y-4">
-              <h3 className="text-lg font-medium">Background</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="backgroundType">Background Type</Label>
-                <Select
-                  value={backgroundType}
-                  onValueChange={(value: "solid" | "texture" | "custom") => {
-                    setBackgroundType(value);
-                    
-                    if (value === "texture") {
-                      updateOptions({ useTexture: true, customBackgroundImage: undefined });
-                    } else if (value === "custom") {
-                      updateOptions({ useTexture: false, customBackgroundImage: options.customBackgroundImage || "" });
-                    } else {
-                      updateOptions({ useTexture: false, customBackgroundImage: undefined });
-                    }
-                  }}
-                >
-                  <SelectTrigger id="backgroundType" className="w-full">
-                    <SelectValue placeholder="Select background type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="solid">Solid Color</SelectItem>
-                    <SelectItem value="texture">Paper Texture</SelectItem>
-                    <SelectItem value="custom">Custom Image</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  Choose between a solid color, paper texture, or custom image background
-                </p>
-              </div>
-              
-              {/* Background opacity slider - shown for all background types */}
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <Label htmlFor="backgroundOpacity">
-                    Background Opacity: {Math.round((options.backgroundOpacity || 0.5) * 100)}%
-                  </Label>
-                </div>
-                <Slider
-                  id="backgroundOpacity"
-                  min={0.1}
-                  max={1.0}
-                  step={0.05}
-                  value={[options.backgroundOpacity || 0.5]}
-                  onValueChange={(value: number[]) => 
-                    updateOptions({ backgroundOpacity: value[0] })
-                  }
-                />
-                <p className="text-sm text-muted-foreground">
-                  Adjust the opacity of the background
-                </p>
-              </div>
-              
-              {/* Background type specific controls */}
-              {backgroundType === "solid" && (
-                <div className="space-y-2">
-                  <Label htmlFor="backgroundColor">Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="backgroundColor"
-                      type="color"
-                      value={options.backgroundColor}
-                      onChange={(e) => updateOptions({ backgroundColor: e.target.value })}
-                      className="w-12 h-10 p-1"
-                    />
-                    <Input
-                      value={options.backgroundColor}
-                      onChange={(e) => updateOptions({ backgroundColor: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              )}
-              
-              {backgroundType === "custom" && (
-                <>
-                  {/* Image preview */}
-                  {options.customBackgroundImage && (
-                    <div className="space-y-2">
-                      <Label>Custom Background Image</Label>
-                      <div className="relative w-full h-28 bg-slate-100 rounded-md overflow-hidden">
-                        <Image 
-                          src={options.customBackgroundImage} 
-                          alt="Custom background preview" 
-                          className="w-full h-full object-cover"
-                          width={112}
-                          height={112}
-                        />
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1"
-                          onClick={() => {
-                            updateOptions({ customBackgroundImage: undefined });
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* File upload input */}
-                  <div className="space-y-2">
-                    <Label htmlFor="customBackgroundImage">
-                      {options.customBackgroundImage ? "Change Image" : "Upload Image"}
-                    </Label>
-                    <Input
-                      id="customBackgroundImage"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              updateOptions({ 
-                                customBackgroundImage: event.target.result.toString() 
-                              });
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Watermarks Section */}
-            <div className="rounded-lg border border-border bg-purple-50 dark:bg-purple-900/20 p-4 space-y-4">
-              <h3 className="text-lg font-medium">Watermarks</h3>
-              
-              {/* Bottom Right Watermark */}
-              <div className="space-y-4 border border-border bg-background rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Bottom Right Watermark</h4>
-                  <Switch
-                    id="bottomRightEnabled"
-                    checked={options.watermarks.bottomRight.enabled}
-                    onCheckedChange={(checked) => 
-                      updateWatermark('bottomRight', { enabled: checked })
-                    }
-                  />
-                </div>
-                
-                {options.watermarks.bottomRight.enabled && (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="bottomRightText">Watermark Text</Label>
-                      <Input
-                        id="bottomRightText"
-                        value={options.watermarks.bottomRight.text}
-                        onChange={(e) => updateWatermark('bottomRight', { text: e.target.value })}
-                        placeholder="e.g. @yourusername"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Diagonal Watermark */}
-              <div className="space-y-4 border border-border bg-background rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Diagonal Watermark</h4>
-                  <Switch
-                    id="diagonalEnabled"
-                    checked={options.watermarks.diagonal.enabled}
-                    onCheckedChange={(checked) => 
-                      updateWatermark('diagonal', { enabled: checked })
-                    }
-                  />
-                </div>
-                
-                {options.watermarks.diagonal.enabled && (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="diagonalText">Watermark Text</Label>
-                      <Input
-                        id="diagonalText"
-                        value={options.watermarks.diagonal.text}
-                        onChange={(e) => updateWatermark('diagonal', { text: e.target.value })}
-                        placeholder="e.g. @yourusername"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label htmlFor="diagonalOpacity">
-                          Opacity: {Math.round(options.watermarks.diagonal.opacity * 100)}%
-                        </Label>
-                      </div>
-                      <Slider
-                        id="diagonalOpacity"
-                        min={0.02}
-                        max={0.2}
-                        step={0.02}
-                        value={[options.watermarks.diagonal.opacity]}
-                        onValueChange={(value: number[]) => 
-                          updateWatermark('diagonal', { opacity: value[0] })
-                        }
-                      />
-                    </div>
+  // Handle background type changes
+  const handleBackgroundTypeChange = (type: "solid" | "texture" | "custom") => {
+    setBackgroundType(type);
+    
+    if (type === "texture") {
+      updateOptions({ useTexture: true, customBackgroundImage: undefined });
+    } else if (type === "custom") {
+      updateOptions({ useTexture: false, customBackgroundImage: options.customBackgroundImage || "" });
+    } else {
+      updateOptions({ useTexture: false, customBackgroundImage: undefined });
+    }
+  };
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label htmlFor="diagonalSize">
-                          Size: {Math.round((options.watermarks.diagonal.size ?? 1.0) * 100)}%
-                        </Label>
-                      </div>
-                      <Slider
-                        id="diagonalSize"
-                        min={0.5}
-                        max={2.0}
-                        step={0.1}
-                        value={[options.watermarks.diagonal.size ?? 1.0]}
-                        onValueChange={(value: number[]) => 
-                          updateWatermark('diagonal', { size: value[0] })
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
+  // Template management functions
+  const saveAsTemplate = (name: string) => {
+    if (!options) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Check if template with this name already exists
+      const existingIndex = templates.findIndex(t => t.name === name);
+      const updatedTemplates = [...templates];
+      
+      if (existingIndex >= 0) {
+        // Update existing template
+        updatedTemplates[existingIndex] = {
+          name,
+          timestamp: Date.now(),
+          options: {...options}
+        };
+        toast.success(`Template "${name}" updated`, { duration: 2000 });
+      } else {
+        // Add new template
+        updatedTemplates.push({
+          name,
+          timestamp: Date.now(),
+          options: {...options}
+        });
+        toast.success(`Template "${name}" saved`, { duration: 2000 });
+      }
+      
+      // Update state and localStorage
+      setTemplates(updatedTemplates);
+      setActiveTemplate(name);
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify({
+        templates: updatedTemplates,
+        activeTemplate: name
+      }));
+      
+      // Close dialog and reset name
+      setSaveDialogOpen(false);
+      setNewTemplateName("");
+    } catch (error) {
+      console.error("Error saving template:", error);
+      toast.error("Failed to save template", { duration: 3000 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadTemplate = (name: string) => {
+    const template = templates.find(t => t.name === name);
+    if (!template) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Load template options
+      setOptions(template.options);
+      
+      // Update active template
+      setActiveTemplate(name);
+      
+      // Update background type
+      if (template.options.useTexture) {
+        setBackgroundType("texture");
+      } else if (template.options.customBackgroundImage) {
+        setBackgroundType("custom");
+      } else {
+        setBackgroundType("solid");
+      }
+      
+      // Update localStorage
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify({
+        templates,
+        activeTemplate: name
+      }));
+      
+      toast.success(`Template "${name}" loaded`, { duration: 2000 });
+    } catch (error) {
+      console.error("Error loading template:", error);
+      toast.error("Failed to load template", { duration: 3000 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateCurrentTemplate = () => {
+    if (!activeTemplate || !options) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Find and update the template
+      const updatedTemplates = templates.map(t => 
+        t.name === activeTemplate 
+          ? { ...t, timestamp: Date.now(), options: {...options} }
+          : t
+      );
+      
+      // Update state and localStorage
+      setTemplates(updatedTemplates);
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify({
+        templates: updatedTemplates,
+        activeTemplate
+      }));
+      
+      toast.success(`Template "${activeTemplate}" updated`, { duration: 2000 });
+    } catch (error) {
+      console.error("Error updating template:", error);
+      toast.error("Failed to update template", { duration: 3000 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteTemplate = (name: string) => {
+    if (!confirm(`Are you sure you want to delete template "${name}"?`)) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Filter out the template to delete
+      const updatedTemplates = templates.filter(t => t.name !== name);
+      
+      // Update state
+      setTemplates(updatedTemplates);
+      
+      // If active template was deleted, clear it
+      if (activeTemplate === name) {
+        setActiveTemplate(undefined);
+      }
+      
+      // Update localStorage
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify({
+        templates: updatedTemplates,
+        activeTemplate: activeTemplate === name ? undefined : activeTemplate
+      }));
+      
+      toast.success(`Template "${name}" deleted`, { duration: 2000 });
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      toast.error("Failed to delete template", { duration: 3000 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      if (!previewRef.current) {
+        // Try to find the preview element using query selector as a fallback
+        const previewElement = document.querySelector('[data-preview-content="true"]');
+        if (!previewElement) {
+          toast.error("Could not find preview element to download", { duration: 3000 });
+          return;
+        }
+        
+        const dataUrl = await toPng(previewElement as HTMLElement, { quality: 0.95 });
+        saveAs(dataUrl, "ezscreenshotessay.png");
+      } else {
+        const dataUrl = await toPng(previewRef.current, { quality: 0.95 });
+        saveAs(dataUrl, "ezscreenshotessay.png");
+      }
+      
+      toast.success("Screenshot downloaded", { duration: 2000 });
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast.error("Failed to download screenshot", { duration: 3000 });
+    }
+  };
+
+  const renderSettingsPanel = () => (
+    <div className="h-full overflow-y-auto">
+      <Card className="h-full border-0 rounded-none shadow-none">
+        {/* Site header */}
+        <div className="border-b pb-4 mb-4">
+          <div className="flex flex-col space-y-2 p-6 pb-2">
+            <h1 className="text-3xl font-bold">EZScreenshotEssay.com</h1>
+            <p className="text-sm text-muted-foreground">
+              Create beautiful screenshots with custom styling, images, and watermarks
+            </p>
+            <p className="text-xs text-muted-foreground pt-2">
+              Made with ❤️ by Gary Sheng • <a href="https://github.com/garysheng/ezscreenshotessay" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+            </p>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {/* Content Section */}
+          <ContentEditor 
+            content={options.content}
+            onChange={(content) => updateOptions({ content })}
+          />
+          
+          {/* Appearance Section */}
+          <AppearanceSettings 
+            options={options}
+            onUpdate={updateSingleOption}
+          />
+          
+          {/* Background Section */}
+          <BackgroundSettings 
+            backgroundType={backgroundType}
+            backgroundColor={options.backgroundColor}
+            backgroundOpacity={options.backgroundOpacity || 0.5}
+            customBackgroundImage={options.customBackgroundImage}
+            onTypeChange={handleBackgroundTypeChange}
+            onColorChange={(color) => updateOptions({ backgroundColor: color })}
+            onOpacityChange={(opacity) => updateOptions({ backgroundOpacity: opacity })}
+            onImageChange={(imageDataUrl) => updateOptions({ customBackgroundImage: imageDataUrl })}
+          />
+          
+          {/* Watermarks Section */}
+          <WatermarkSettings 
+            bottomRight={options.watermarks.bottomRight}
+            diagonal={options.watermarks.diagonal}
+            onBottomRightChange={(config) => updateWatermark('bottomRight', config)}
+            onDiagonalChange={(config) => updateWatermark('diagonal', config)}
+          />
+
+          {/* Control buttons and template section */}
+          <div className="mt-8 pt-6 border-t border-border">
+            {/* Template controls */}
+            <TemplateControls 
+              templates={templates}
+              activeTemplate={activeTemplate}
+              isLoading={isLoading}
+              onLoadTemplate={loadTemplate}
+              onUpdateTemplate={updateCurrentTemplate}
+              onSaveTemplate={saveAsTemplate}
+              onDeleteTemplate={deleteTemplate}
+            />
+            
+            {/* Save/Reset buttons */}
+            <ActionButtons 
+              onReset={handleReset}
+              onSave={handleSaveManually}
+            />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div className="w-full h-full overflow-hidden">
+      {isLargeScreen ? (
+        // Use resizable panels only on desktop
+        <PanelGroup 
+          direction="horizontal" 
+          className="h-full"
+          autoSaveId="screenshot-essay-layout"
+        >
+          {/* Editor Panel */}
+          <Panel defaultSize={50} minSize={30}>
+            {renderSettingsPanel()}
+          </Panel>
+          
+          {/* Resize Handle */}
+          <PanelResizeHandle className="w-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors duration-150 cursor-col-resize flex items-center justify-center">
+            <div className="w-1 h-8 rounded-full opacity-30">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </PanelResizeHandle>
+          
+          {/* Preview Panel */}
+          <Panel defaultSize={50} minSize={30}>
+            <PreviewPanel
+              onDownload={handleDownload}
+              isLargeScreen={true}
+            >
+              <div ref={previewRef}>
+                <ScreenshotEssayPreview options={options} />
               </div>
+            </PreviewPanel>
+          </Panel>
+        </PanelGroup>
+      ) : (
+        // Simple stacked layout for mobile - no resizable panels
+        <div className="flex flex-col h-full">
+          <div className="flex-grow overflow-y-auto">
+            {renderSettingsPanel()}
+            
+            {/* Preview Section for mobile */}
+            <PreviewPanel
+              onDownload={handleDownload}
+              isLargeScreen={false}
+            >
+              <div data-preview-content="true">
+                <ScreenshotEssayPreview options={options} />
+              </div>
+            </PreviewPanel>
+          </div>
+        </div>
+      )}
+      
+      {/* Template Save Dialog */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as Template</DialogTitle>
+            <DialogDescription>
+              Save your current configuration as a reusable template.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Template Name</Label>
+              <Input
+                id="templateName"
+                placeholder="My Template"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+              />
             </div>
           </div>
-        </Card>
-      </div>
-      
-      <div>
-        <div className="sticky top-24">
-          <ScreenshotEssayPreview options={options} />
-        </div>
-      </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => saveAsTemplate(newTemplateName)}
+              disabled={!newTemplateName.trim() || isLoading}
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Save Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

@@ -121,3 +121,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
