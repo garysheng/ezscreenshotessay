@@ -265,9 +265,10 @@ export default function ScreenshotEssayGenerator() {
                   size="sm" 
                   onClick={handleSaveManually}
                   className="gap-1"
+                  title="Your settings will be automatically remembered when you return to the site next time"
                 >
                   <Save className="h-4 w-4" />
-                  Save
+                  Save to local storage
                 </Button>
               </div>
             </div>

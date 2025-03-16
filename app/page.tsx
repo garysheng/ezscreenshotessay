@@ -28,6 +28,15 @@ export default function ScreenshotEssayPage() {
           >
             Gary Sheng
           </Link>
+          {" • "}
+          <Link 
+            href="https://github.com/garysheng/ezscreenshotessay" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
+            GitHub
+          </Link>
         </p>
       </footer>
     </div>
