@@ -440,29 +440,29 @@ export default function ScreenshotEssayGenerator() {
   };
 
   const renderSettingsPanel = () => (
-            <div className="h-full overflow-y-auto">
-              <Card className="h-full border-0 rounded-none shadow-none">
-                {/* Site header */}
-                <div className="border-b pb-4 mb-4">
-                  <div className="flex flex-col space-y-2 p-6 pb-2">
-                    <h1 className="text-3xl font-bold">EZScreenshotEssay.com</h1>
-                    <p className="text-sm text-muted-foreground">
-                      Create beautiful screenshots with custom styling, images, and watermarks
-                    </p>
-                    <p className="text-xs text-muted-foreground pt-2">
-                      Made with ❤️ by Gary Sheng • <a href="https://github.com/garysheng/ezscreenshotessay" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="p-6 space-y-6">
-                  {/* Content Section */}
+    <div className="h-full overflow-y-auto">
+      <Card className="h-full border-0 rounded-none shadow-none">
+        {/* Site header */}
+        <div className="border-b pb-2">
+          <div className="flex flex-col space-y-2 p-4 pb-2">
+            <h1 className="text-3xl font-bold">EZScreenshotEssay.com</h1>
+            <p className="text-sm text-muted-foreground">
+              Create beautiful screenshots with custom styling, images, and watermarks
+            </p>
+            <p className="text-xs text-muted-foreground pt-2">
+              Made with ❤️ by Gary Sheng • <a href="https://github.com/garysheng/ezscreenshotessay" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+            </p>
+          </div>
+        </div>
+        
+        <div className="p-4 space-y-6">
+          {/* Content Section */}
           <ContentEditor 
             content={options.content}
             onChange={(content) => updateOptions({ content })}
           />
-                  
-                  {/* Appearance Section */}
+          
+          {/* Appearance Section */}
           <AppearanceSettings 
             options={options}
             onUpdate={updateSingleOption}
@@ -479,8 +479,8 @@ export default function ScreenshotEssayGenerator() {
             onOpacityChange={(opacity) => updateOptions({ backgroundOpacity: opacity })}
             onImageChange={(imageDataUrl) => updateOptions({ customBackgroundImage: imageDataUrl })}
           />
-                  
-                  {/* Watermarks Section */}
+          
+          {/* Watermarks Section */}
           <WatermarkSettings 
             bottomRight={options.watermarks.bottomRight}
             diagonal={options.watermarks.diagonal}
@@ -488,9 +488,9 @@ export default function ScreenshotEssayGenerator() {
             onDiagonalChange={(config) => updateWatermark('diagonal', config)}
           />
 
-                  {/* Control buttons and template section */}
-                  <div className="mt-8 pt-6 border-t border-border">
-                    {/* Template controls */}
+          {/* Control buttons and template section */}
+          <div className="mt-8 pt-6 border-t border-border">
+            {/* Template controls */}
             <TemplateControls 
               templates={templates}
               activeTemplate={activeTemplate}
@@ -500,16 +500,16 @@ export default function ScreenshotEssayGenerator() {
               onSaveTemplate={saveAsTemplate}
               onDeleteTemplate={deleteTemplate}
             />
-                    
-                    {/* Save/Reset buttons */}
+            
+            {/* Save/Reset buttons */}
             <ActionButtons 
               onReset={handleReset}
               onSave={handleSaveManually}
             />
-                  </div>
-                </div>
-              </Card>
-            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 
   return (
@@ -565,30 +565,48 @@ export default function ScreenshotEssayGenerator() {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="settings" className="flex-grow overflow-y-auto m-0 p-0 pb-16">
-              {renderSettingsPanel()}
+            <TabsContent value="settings" className="flex-grow overflow-y-auto m-0 p-0">
+              <div className="pb-8">
+                {renderSettingsPanel()}
+              </div>
             </TabsContent>
             
-            <TabsContent value="preview" className="flex-grow overflow-y-auto m-0 p-0 h-[calc(100vh-56px)]">
-              {/* Add a floating download button for easier access */}
-              <div className="sticky top-4 right-4 flex justify-end z-20 p-2">
+            <TabsContent value="preview" 
+              className="flex-grow overflow-y-auto m-0 p-0 h-[calc(100vh-56px)] dark:bg-slate-900 dark:[--grid-color:rgba(255,255,255,0.07)] dark:[--grid-bg:#111827]"
+              style={{
+                backgroundImage: `
+                  linear-gradient(45deg, var(--grid-color) 25%, transparent 25%),
+                  linear-gradient(-45deg, var(--grid-color) 25%, transparent 25%),
+                  linear-gradient(45deg, transparent 75%, var(--grid-color) 75%),
+                  linear-gradient(-45deg, transparent 75%, var(--grid-color) 75%)
+                `,
+                backgroundSize: '16px 16px',
+                backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+                backgroundColor: 'var(--grid-bg)',
+                ['--grid-color' as string]: 'rgba(0, 0, 0, 0.05)',
+                ['--grid-bg' as string]: '#ffffff',
+              }}
+            >
+              {/* Floating download button */}
+              <div className="sticky top-0 right-0 p-4 flex justify-end z-20 bg-gradient-to-b from-background/80 via-background/30 to-transparent">
                 <Button 
                   onClick={handleDownload} 
-                  size="sm"
-                  className="shadow-lg bg-primary hover:bg-primary/90 text-white gap-1"
+                  className="gap-2 shadow-md hover:shadow-lg transition-shadow"
+                  size="default"
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  <Download className="h-5 w-5" />
+                  Download PNG
                 </Button>
               </div>
-              <PreviewPanel
-                onDownload={handleDownload}
-                isLargeScreen={false}
-              >
-                <div data-preview-content="true">
-                  <ScreenshotEssayPreview options={options} />
+              
+              {/* Preview content centered in the checkered background */}
+              <div className="px-4 pt-2 pb-16">
+                <div className="flex justify-center py-8">
+                  <div data-preview-content="true" className="mx-auto max-w-md">
+                    <ScreenshotEssayPreview options={options} />
+                  </div>
                 </div>
-              </PreviewPanel>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

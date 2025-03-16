@@ -47,23 +47,11 @@ export function PreviewPanel({ children, onDownload, isLargeScreen }: PreviewPan
     );
   }
 
+  // Mobile view - simplified without additional headers
   return (
-    <div className="mt-8 mb-8 bg-slate-50 dark:bg-slate-900 pb-8 pt-2 rounded-t-xl shadow-lg">      
-      {/* Preview header with better styling */}
-      <div className="flex justify-between items-center mb-6 px-4 py-2 bg-black dark:bg-white text-white dark:text-black mx-4 rounded-md">
-        <h3 className="text-xl font-bold">Preview</h3>
-        {/* Mobile download button */}
-        <Button 
-          onClick={onDownload} 
-          className="gap-1 hover:scale-105 transition-transform hover:shadow-md bg-white text-black hover:bg-white/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
-          size="sm"
-        >
-          <Download size={16} />
-          Download
-        </Button>
-      </div>
+    <div className="bg-slate-50 dark:bg-slate-900 p-6">
       <div 
-        className="rounded-md mx-4 p-6 flex justify-center"
+        className="rounded-md flex justify-center"
         style={gridStyles}
       >
         {children}

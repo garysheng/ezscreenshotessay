@@ -201,6 +201,74 @@ export function LexicalEditor({
     handleContentChange();
   }, [handleContentChange]);
   
+  // Toggle blockquote with left bar styling
+  const toggleBlockquote = useCallback(() => {
+    if (!editorRef.current) return;
+    
+    editorRef.current.focus();
+    
+    // Check if we're in a blockquote already
+    const selection = window.getSelection();
+    let blockquoteToRemove = null;
+    
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      let parentEl = range.commonAncestorContainer;
+      
+      if (parentEl.nodeType === Node.TEXT_NODE) {
+        parentEl = parentEl.parentElement;
+      }
+      
+      // Find if we're inside a blockquote
+      let currentEl = parentEl;
+      while (currentEl && currentEl !== editorRef.current) {
+        if (currentEl instanceof HTMLElement && currentEl.tagName.toLowerCase() === 'blockquote') {
+          blockquoteToRemove = currentEl;
+          break;
+        }
+        currentEl = currentEl.parentElement;
+      }
+    }
+    
+    if (blockquoteToRemove) {
+      // We're in a blockquote, so unwrap it
+      const fragment = document.createDocumentFragment();
+      while (blockquoteToRemove.firstChild) {
+        fragment.appendChild(blockquoteToRemove.firstChild);
+      }
+      blockquoteToRemove.parentNode?.replaceChild(fragment, blockquoteToRemove);
+    } else {
+      // We're not in a blockquote, so create one
+      document.execCommand('formatBlock', false, 'blockquote');
+      
+      // Find the created blockquote and add styling
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let parentEl = range.commonAncestorContainer;
+        
+        if (parentEl.nodeType === Node.TEXT_NODE) {
+          parentEl = parentEl.parentElement;
+        }
+        
+        // Find our newly created blockquote
+        let currentEl = parentEl;
+        while (currentEl && currentEl !== editorRef.current) {
+          if (currentEl instanceof HTMLElement && currentEl.tagName.toLowerCase() === 'blockquote') {
+            // Add the bar quote styling with current text color
+            currentEl.style.borderLeft = '4px solid currentColor';
+            currentEl.style.paddingLeft = '1rem';
+            currentEl.style.marginLeft = '0';
+            currentEl.style.fontStyle = 'italic';
+            break;
+          }
+          currentEl = currentEl.parentElement;
+        }
+      }
+    }
+    
+    handleContentChange();
+  }, [handleContentChange]);
+  
   // Handle image uploads
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -320,6 +388,15 @@ export function LexicalEditor({
         <button 
           type="button" 
           className="p-1 rounded hover:bg-muted-foreground/20"
+          onClick={() => toggleBlockquote()}
+          title="Bar Quote"
+        >
+          <span className="inline-block w-4 border-l-4 border-current h-5 mx-0.5"></span>
+        </button>
+        <span className="h-6 w-px bg-border mx-1"></span>
+        <button 
+          type="button" 
+          className="p-1 rounded hover:bg-muted-foreground/20"
           onClick={() => fileInputRef.current?.click()}
         >
           <ImageIcon className="h-4 w-4" />
@@ -350,6 +427,7 @@ export function LexicalEditor({
         }}
       />
 
+      {/* Hidden styles for rendered content */}
       <style jsx global>{`
         .editor-content ul {
           list-style-type: disc;
@@ -399,6 +477,16 @@ export function LexicalEditor({
           color: #9ca3af;
           pointer-events: none;
           display: block;
+        }
+        
+        .editor-content blockquote {
+          border-left: 4px solid currentColor !important;
+          padding-left: 1rem !important;
+          margin-left: 0 !important;
+          font-style: italic !important;
+          color: inherit !important;
+          margin-top: 0.5em !important;
+          margin-bottom: 0.5em !important;
         }
       `}</style>
     </div>
