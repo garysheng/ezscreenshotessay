@@ -24,12 +24,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
-import { ScreenshotEssayOptions } from "@/types";
 
 export interface SavedTemplate {
   name: string;
   timestamp: number;
-  options: ScreenshotEssayOptions; // Use the proper type instead of any
+  options: any; // We'll use any here since we're only managing the template, not using its contents
 }
 
 interface TemplateControlsProps {

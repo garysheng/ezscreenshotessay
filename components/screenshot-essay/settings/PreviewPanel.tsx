@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
@@ -9,7 +9,7 @@ interface PreviewPanelProps {
 }
 
 export function PreviewPanel({ children, onDownload, isLargeScreen }: PreviewPanelProps) {
-  const gridStyles: React.CSSProperties = {
+  const gridStyles = {
     backgroundImage: `
       linear-gradient(45deg, var(--grid-color) 25%, transparent 25%),
       linear-gradient(-45deg, var(--grid-color) 25%, transparent 25%),
@@ -19,8 +19,8 @@ export function PreviewPanel({ children, onDownload, isLargeScreen }: PreviewPan
     backgroundSize: '16px 16px',
     backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
     backgroundColor: 'var(--grid-bg)',
-    ['--grid-color' as string]: 'rgba(0, 0, 0, 0.05)',
-    ['--grid-bg' as string]: '#ffffff',
+    ['--grid-color' as any]: 'rgba(0, 0, 0, 0.05)',
+    ['--grid-bg' as any]: '#ffffff',
   };
 
   if (isLargeScreen) {

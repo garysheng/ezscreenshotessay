@@ -4,23 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { ScreenshotEssayOptions, WatermarkConfig } from "@/types";
 import ScreenshotEssayPreview, { toPng, saveAs } from "./ScreenshotEssayPreview";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { GripVertical } from "lucide-react";
-import {
-  PanelGroup,
-  Panel,
-  PanelResizeHandle,
-} from "react-resizable-panels";
+import { Button } from "@/components/ui/button";
+import { Loader2, GripVertical } from "lucide-react";
 
-// Import our reusable components
-import { ContentEditor } from "./settings/ContentEditor";
-import { AppearanceSettings } from "./settings/AppearanceSettings";
-import { BackgroundSettings } from "./settings/BackgroundSettings";
-import { WatermarkSettings } from "./settings/WatermarkSettings";
-import { TemplateControls, SavedTemplate } from "./settings/TemplateControls";
-import { ActionButtons } from "./settings/ActionButtons";
-import { PreviewPanel } from "./settings/PreviewPanel";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,11 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
-
+import {
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 // Default options to use when no saved state exists
 const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
   // Content
@@ -77,9 +67,49 @@ const DEFAULT_OPTIONS: ScreenshotEssayOptions = {
   }
 };
 
+// Simplify the aspect ratio options to only 3 choices
+const ASPECT_RATIO_OPTIONS = [
+  { 
+    value: "6:7", 
+    label: "6:7 (Portrait)",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 35" width="30" height="35" className="mr-2 text-muted-foreground">
+        <rect width="30" height="35" rx="2" fill="currentColor" opacity="0.2" />
+      </svg>
+    )
+  },
+  { 
+    value: "1:1", 
+    label: "1:1 (Square)",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="40" height="30" className="mr-2 text-muted-foreground">
+        <rect width="30" height="30" rx="2" fill="currentColor" opacity="0.2" />
+      </svg>
+    )
+  },
+  { 
+    value: "3:4", 
+    label: "3:4",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40" width="30" height="40" className="mr-2 text-muted-foreground">
+        <rect width="30" height="40" rx="2" fill="currentColor" opacity="0.2" />
+      </svg>
+    )
+  }
+];
+
 // Local storage keys
 const STORAGE_KEY = "ezscreenshotessay-options";
 const TEMPLATES_STORAGE_KEY = "ezscreenshotessay-templates";
+
+// Import our reusable components
+import { ContentEditor } from "./settings/ContentEditor";
+import { AppearanceSettings } from "./settings/AppearanceSettings";
+import { BackgroundSettings } from "./settings/BackgroundSettings";
+import { WatermarkSettings } from "./settings/WatermarkSettings";
+import { TemplateControls, SavedTemplate } from "./settings/TemplateControls";
+import { ActionButtons } from "./settings/ActionButtons";
+import { PreviewPanel } from "./settings/PreviewPanel";
 
 export default function ScreenshotEssayGenerator() {
   // Initialize with null to indicate we haven't loaded yet
@@ -198,7 +228,7 @@ export default function ScreenshotEssayGenerator() {
     setOptions((prev) => prev ? { ...prev, ...newOptions } : { ...DEFAULT_OPTIONS, ...newOptions });
   };
 
-  const updateSingleOption = (key: string, value: unknown) => {
+  const updateSingleOption = (key: string, value: any) => {
     updateOptions({ [key]: value });
   };
 
@@ -431,29 +461,29 @@ export default function ScreenshotEssayGenerator() {
   };
 
   const renderSettingsPanel = () => (
-    <div className="h-full overflow-y-auto">
-      <Card className="h-full border-0 rounded-none shadow-none">
-        {/* Site header */}
-        <div className="border-b pb-4 mb-4">
-          <div className="flex flex-col space-y-2 p-6 pb-2">
-            <h1 className="text-3xl font-bold">EZScreenshotEssay.com</h1>
-            <p className="text-sm text-muted-foreground">
-              Create beautiful screenshots with custom styling, images, and watermarks
-            </p>
-            <p className="text-xs text-muted-foreground pt-2">
-              Made with ❤️ by Gary Sheng • <a href="https://github.com/garysheng/ezscreenshotessay" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
-            </p>
-          </div>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          {/* Content Section */}
+            <div className="h-full overflow-y-auto">
+              <Card className="h-full border-0 rounded-none shadow-none">
+                {/* Site header */}
+                <div className="border-b pb-4 mb-4">
+                  <div className="flex flex-col space-y-2 p-6 pb-2">
+                    <h1 className="text-3xl font-bold">EZScreenshotEssay.com</h1>
+                    <p className="text-sm text-muted-foreground">
+                      Create beautiful screenshots with custom styling, images, and watermarks
+                    </p>
+                    <p className="text-xs text-muted-foreground pt-2">
+                      Made with ❤️ by Gary Sheng • <a href="https://github.com/garysheng/ezscreenshotessay" target="_blank" rel="noopener noreferrer" className="hover:underline">GitHub</a>
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                  {/* Content Section */}
           <ContentEditor 
             content={options.content}
             onChange={(content) => updateOptions({ content })}
           />
-          
-          {/* Appearance Section */}
+                  
+                  {/* Appearance Section */}
           <AppearanceSettings 
             options={options}
             onUpdate={updateSingleOption}
@@ -470,8 +500,8 @@ export default function ScreenshotEssayGenerator() {
             onOpacityChange={(opacity) => updateOptions({ backgroundOpacity: opacity })}
             onImageChange={(imageDataUrl) => updateOptions({ customBackgroundImage: imageDataUrl })}
           />
-          
-          {/* Watermarks Section */}
+                  
+                  {/* Watermarks Section */}
           <WatermarkSettings 
             bottomRight={options.watermarks.bottomRight}
             diagonal={options.watermarks.diagonal}
@@ -479,9 +509,9 @@ export default function ScreenshotEssayGenerator() {
             onDiagonalChange={(config) => updateWatermark('diagonal', config)}
           />
 
-          {/* Control buttons and template section */}
-          <div className="mt-8 pt-6 border-t border-border">
-            {/* Template controls */}
+                  {/* Control buttons and template section */}
+                  <div className="mt-8 pt-6 border-t border-border">
+                    {/* Template controls */}
             <TemplateControls 
               templates={templates}
               activeTemplate={activeTemplate}
@@ -491,16 +521,16 @@ export default function ScreenshotEssayGenerator() {
               onSaveTemplate={saveAsTemplate}
               onDeleteTemplate={deleteTemplate}
             />
-            
-            {/* Save/Reset buttons */}
+                    
+                    {/* Save/Reset buttons */}
             <ActionButtons 
               onReset={handleReset}
               onSave={handleSaveManually}
             />
-          </div>
-        </div>
-      </Card>
-    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
   );
 
   return (
@@ -530,9 +560,9 @@ export default function ScreenshotEssayGenerator() {
               onDownload={handleDownload}
               isLargeScreen={true}
             >
-              <div ref={previewRef}>
-                <ScreenshotEssayPreview options={options} />
-              </div>
+                <div ref={previewRef}>
+                  <ScreenshotEssayPreview options={options} />
+                </div>
             </PreviewPanel>
           </Panel>
         </PanelGroup>
@@ -546,10 +576,10 @@ export default function ScreenshotEssayGenerator() {
             <PreviewPanel
               onDownload={handleDownload}
               isLargeScreen={false}
-            >
-              <div data-preview-content="true">
-                <ScreenshotEssayPreview options={options} />
-              </div>
+              >
+                <div data-preview-content="true">
+                  <ScreenshotEssayPreview options={options} />
+                </div>
             </PreviewPanel>
           </div>
         </div>
